@@ -1,0 +1,11 @@
+{
+  "lastNumberOfDays" : 2,
+  "mixpanel.project.api.secret" : "3f92b5055bb6822594c35f96cdb78a77",
+  "split.admin.api.key" : "1s46c6r6tfl9m7usijqsmicfckm04mn8b321",
+  "trafficType" : "user",
+  "environment" : "Prod-Default",
+  "eventPrefix" : "mix.",
+  "key" : "distinct_id",
+  "value" : "",
+  "batchSize" : 5000  
+}
