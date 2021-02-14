@@ -50,7 +50,7 @@ public class App
 			String start = format.format(daysAgo);
 			String end = format.format(now);
 
-			System.out.println("reporting from " + start + " to " + end);
+			System.out.println("INFO - reporting from " + start + " to " + end);
 			
 			new MixPanel2Split().execute(start, end, configObj);
 			

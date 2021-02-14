@@ -24,7 +24,8 @@ import okhttp3.Route;
 public class MixPanel2Split {
 
 	public void execute(String start, String end, final JSONObject config) throws Exception {
-
+		System.out.println("INFO - " + config.toString(2));
+		
 		OkHttpClient client = new OkHttpClient.Builder()
 				.authenticator(new Authenticator() {
 			        public Request authenticate(Route route, Response response) throws IOException {
@@ -32,16 +33,17 @@ public class MixPanel2Split {
 			            return response.request().newBuilder().header("Authorization", credential).build();
 			        }
 			    })
-				.connectTimeout(30, TimeUnit.SECONDS)
-				.readTimeout(120, TimeUnit.SECONDS)
+				.connectTimeout(config.getLong("connectTimeoutInSeconds"), TimeUnit.SECONDS)
+				.readTimeout(config.getLong("readTimeoutInSeconds"), TimeUnit.SECONDS)
 				.build();
 
 		String uri = "https://data.mixpanel.com/api/2.0/export?from_date=" + start + "&to_date=" + end;	
-		System.out.println(uri);
+		System.out.println("INFO - " + uri);
 		Request request = new Request.Builder()
 				.url(uri)
 				.build();
 		
+		System.out.println("INFO - starting request... ");
 		Response response = client.newCall(request).execute();
 		System.out.println("success getting export?\t\t" + response.code());
 
@@ -89,9 +91,14 @@ public class MixPanel2Split {
 		for(int i = 0; i < eventName.length(); i++) {
 			letter = eventName.charAt(i);
 			if(!Character.isAlphabetic(letter)
-					&& !Character.isDigit(letter)
-					&& letter != '-' && letter != '_' && letter != '.') {
-				letter = 'm';
+					&& !Character.isDigit(letter)) {
+				if(i == 0) {
+					letter = '0';
+				} else {
+					if (letter != '-' && letter != '_' && letter != '.') {
+						letter = '_';
+					}
+				}
 			}
 			result += "" + letter;
 		}
