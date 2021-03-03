@@ -11,7 +11,7 @@ mvn clean compile assembly:single
 Executable JAR takes name of configuration file as argument.
 
 Sample configuration file.
-
+```
 {
   "lastNumberOfDays" : 1,
   "connectTimeoutInSeconds" : 1800,
@@ -25,7 +25,7 @@ Sample configuration file.
   "value" : "",
   "batchSize" : 5000  
 }
-
+```
 Configuration Fields:
 
 * "lastNumberOfDays" - how many days of MixPanel events should be extracted, counting backwards from today?
