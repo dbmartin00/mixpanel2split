@@ -1,4 +1,4 @@
-#MixPanel to Split Events Integration
+# MixPanel to Split Events Integration
 
 ![alt text](http://www.cortazar-split.com/MixPanel2Split.png)
 
