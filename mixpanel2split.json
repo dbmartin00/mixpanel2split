@@ -2,8 +2,8 @@
   "lastNumberOfDays" : 1,
   "connectTimeoutInSeconds" : 1800,
   "readTimeoutInSeconds" : 1800,
-  "mixpanelProjectApiSecret" : "3f92b5055bb6822594c35f96cdb78a77",
-  "splitServerSideApiKey" : "j6a05bmq31fmr6d6b8297s8a3lh1opbrmdi8",
+  "mixpanelProjectApiSecret" : "SECRET"
+  "splitServerSideApiKey" : "SECRET",
   "environment" : "Prod-Default",
   "eventPrefix" : "mix.",
   "includedEvents" : [],
