@@ -16,14 +16,27 @@ Sample configuration file.
   "lastNumberOfDays" : 1,
   "connectTimeoutInSeconds" : 1800,
   "readTimeoutInSeconds" : 1800,
-  "mixpanel.project.api.secret" : "YOUR MIXPANEL API SECRET",
-  "split.admin.api.key" : "YOUR SPLIT SERVER-SIDE SDK KEY",
-  "trafficType" : "user",
+  "mixpanelProjectApiSecret" : "SECRET"
+  "splitServerSideApiKey" : "SECRET",
   "environment" : "Prod-Default",
   "eventPrefix" : "mix.",
-  "key" : "distinct_id",
-  "value" : "",
-  "batchSize" : 5000  
+  "includedEvents" : [],
+  "mappings" : [
+  	  {
+        "trafficType": "user",
+        "key": "$user_id"
+      },
+      {
+        "trafficType": "device",
+        "key": "UTDID"
+      },
+      {
+        "trafficType": "user",
+        "key": "distinct_id"
+  	  }
+  ],  
+  "value" : 0,
+  "batchSize" : 500  
 }
 ```
 Configuration Fields:
@@ -31,10 +44,11 @@ Configuration Fields:
 * "lastNumberOfDays" - how many days of MixPanel events should be extracted, counting backwards from today?
 * "connectTimeoutInSeconds" - lengthy delay allowed by default to be friendly to MixPanel backend
 * "readTimeoutInSeconds" - lengthy timeout allowed by default to be friendly to MixPanel backend
-* "mixpanel.project.api.secret" - find it in your project settings; must be API secret
-* "split.admin.api.key" - should be the Split server-side SDK key (despite the naming)
-* "trafficType" - Split event traffic type, often "user" or "anonymous"
+* "mixpanelProjectApiSecret" - find it in your project settings; must be API secret
+* "splitServerSideApiKey" - Split server-side SDK key 
 * "environment" - Split environment, often "Prod-Default" or as found in Split UI
-* "key" - will use "distinct_id" as the unique key from MixPanel events by default
+* "eventPrefix" - how will MixPanel properties be prefixed in Split?
+* "includedEvents" - not yet implemented; all events are included
+* "mapping" - events are expected for a key; when key is present and non-empty the event is sent to Split with the paired traffic type.  Events can match more than one key, but if they don't match any key they are never sent.
 * "batchSize" - how many Split events to send across in a single API request
-
+* "value" - leave at zero in most cases
