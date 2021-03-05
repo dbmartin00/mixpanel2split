@@ -13,9 +13,10 @@ public class Configuration {
 	public int readTimeoutInSeconds;
 	public String mixpanelProjectApiSecret;
 	public String splitServerSideApiKey;
-	public String trafficType;
 	public String environment;
 	public String eventPrefix;
+	public String[] includedEvents;
+	public Mapping[] mappings; 
 	public String key;
 	public long value;
 	public int batchSize;   

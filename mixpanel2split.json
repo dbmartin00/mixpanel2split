@@ -4,10 +4,23 @@
   "readTimeoutInSeconds" : 1800,
   "mixpanelProjectApiSecret" : "3f92b5055bb6822594c35f96cdb78a77",
   "splitServerSideApiKey" : "j6a05bmq31fmr6d6b8297s8a3lh1opbrmdi8",
-  "trafficType" : "user",
   "environment" : "Prod-Default",
   "eventPrefix" : "mix.",
-  "key" : "distinct_id",
+  "includedEvents" : [],
+  "mappings" : [
+  	  {
+        "trafficType": "user",
+        "key": "$user_id"
+      },
+      {
+        "trafficType": "device",
+        "key": "UTDID"
+      },
+      {
+        "trafficType": "user",
+        "key": "distinct_id"
+  	  }
+  ],  
   "value" : 0,
   "batchSize" : 500  
 }

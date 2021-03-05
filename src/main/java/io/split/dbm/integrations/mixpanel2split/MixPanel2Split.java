@@ -27,14 +27,14 @@ public class MixPanel2Split {
 
 	public void execute(String start, String end, final Configuration config) throws Exception {
 		System.out.println("INFO - " + new JSONObject(new Gson().toJson(config)).toString(2));
-		
+
 		OkHttpClient client = new OkHttpClient.Builder()
 				.authenticator(new Authenticator() {
-			        public Request authenticate(Route route, Response response) throws IOException {
-			            String credential = Credentials.basic(config.mixpanelProjectApiSecret, "");
-			            return response.request().newBuilder().header("Authorization", credential).build();
-			        }
-			    })
+					public Request authenticate(Route route, Response response) throws IOException {
+						String credential = Credentials.basic(config.mixpanelProjectApiSecret, "");
+						return response.request().newBuilder().header("Authorization", credential).build();
+					}
+				})
 				.connectTimeout(config.connectTimeoutInSeconds, TimeUnit.SECONDS)
 				.readTimeout(config.readTimeoutInSeconds, TimeUnit.SECONDS)
 				.build();
@@ -44,7 +44,7 @@ public class MixPanel2Split {
 		Request request = new Request.Builder()
 				.url(uri)
 				.build();
-		
+
 		System.out.println("INFO - starting request... ");
 		Response response = client.newCall(request).execute();
 		System.out.println("success getting export?\t\t" + response.code());
@@ -63,18 +63,33 @@ public class MixPanel2Split {
 			JSONObject rawEvent = rawEvents.getJSONObject(i);
 			JSONObject rawProperties = rawEvent.getJSONObject("properties");
 
-			JSONObject splitEvent = new JSONObject();
-			splitEvent.put("key", rawProperties.getString(config.key));
-			splitEvent.put("trafficTypeName", config.trafficType);
-			splitEvent.put("eventTypeId", cleanEventTypeId(rawEvent.getString("event")));
-			splitEvent.put("value", rawProperties.has("value") ? rawProperties.get("value") : config.value);
-			splitEvent.put("environmentName", config.environment);
-			splitEvent.put("timestamp", Long.parseLong(("" + rawProperties.getLong("time")) + "000" ));
-			Map<String, Object> properties = new TreeMap<String, Object>();
-			putProperties(properties, config.eventPrefix, rawProperties);
-			splitEvent.put("properties", properties);
+			// Mappings look for a specific key in the raw event
+			// If the raw event has that key, the event becomes a Split event
+			// with the paired traffic type of the mapping.
+			//
+			// If a raw event matches several mappings, it can be sent several times
+			//
+			// If a raw event matches none of the mappings, it isn't sent.
+			for(Mapping mapping : config.mappings) {
+				String key = null;
+				if(rawProperties.has(mapping.key)) {
+					key = rawProperties.getString(mapping.key);
+				}
+				if(key != null && !key.isEmpty()) {
+					JSONObject splitEvent = new JSONObject();
+					splitEvent.put("key", key);
+					splitEvent.put("trafficTypeName", mapping.trafficType);
+					splitEvent.put("eventTypeId", cleanEventTypeId(rawEvent.getString("event")));
+					splitEvent.put("value", rawProperties.has("value") ? rawProperties.get("value") : config.value);
+					splitEvent.put("environmentName", config.environment);
+					splitEvent.put("timestamp", Long.parseLong(("" + rawProperties.getLong("time")) + "000" ));
+					Map<String, Object> properties = new TreeMap<String, Object>();
+					putProperties(properties, config.eventPrefix, rawProperties);
+					splitEvent.put("properties", properties);
 
-			splitEvents.put(splitEvent);
+					splitEvents.put(splitEvent);
+				}
+			}
 		}
 
 		CreateEvents creator = new CreateEvents(config.splitServerSideApiKey, config.batchSize);
