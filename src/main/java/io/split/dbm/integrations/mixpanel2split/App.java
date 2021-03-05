@@ -37,11 +37,10 @@ public class App
 		long begin = System.currentTimeMillis();
 
 		try {
-			String configFile = readFile(configFilePath);
-			JSONObject configObj = new JSONObject(configFile);
+			Configuration config = Configuration.fromFile(configFilePath);
 
 			Instant nowUtc = Instant.now();
-			Instant daysAgoUtc = nowUtc.minus(configObj.getInt("lastNumberOfDays"), ChronoUnit.DAYS);
+			Instant daysAgoUtc = nowUtc.minus(config.lastNumberOfDays, ChronoUnit.DAYS);
 			Date now = Date.from(nowUtc);
 			Date daysAgo = Date.from(daysAgoUtc);
 
@@ -52,7 +51,7 @@ public class App
 
 			System.out.println("INFO - reporting from " + start + " to " + end);
 			
-			new MixPanel2Split().execute(start, end, configObj);
+			new MixPanel2Split().execute(start, end, config);
 			
 		} catch(Exception e) {
 			System.err.println("ERROR - exiting with error: " + e.getMessage());

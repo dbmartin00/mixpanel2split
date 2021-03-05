@@ -14,6 +14,8 @@ import java.util.concurrent.TimeUnit;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import com.google.gson.Gson;
+
 import okhttp3.Authenticator;
 import okhttp3.Credentials;
 import okhttp3.OkHttpClient;
@@ -23,18 +25,18 @@ import okhttp3.Route;
 
 public class MixPanel2Split {
 
-	public void execute(String start, String end, final JSONObject config) throws Exception {
-		System.out.println("INFO - " + config.toString(2));
+	public void execute(String start, String end, final Configuration config) throws Exception {
+		System.out.println("INFO - " + new JSONObject(new Gson().toJson(config)).toString(2));
 		
 		OkHttpClient client = new OkHttpClient.Builder()
 				.authenticator(new Authenticator() {
 			        public Request authenticate(Route route, Response response) throws IOException {
-			            String credential = Credentials.basic(config.getString("mixpanel.project.api.secret"), "");
+			            String credential = Credentials.basic(config.mixpanelProjectApiSecret, "");
 			            return response.request().newBuilder().header("Authorization", credential).build();
 			        }
 			    })
-				.connectTimeout(config.getLong("connectTimeoutInSeconds"), TimeUnit.SECONDS)
-				.readTimeout(config.getLong("readTimeoutInSeconds"), TimeUnit.SECONDS)
+				.connectTimeout(config.connectTimeoutInSeconds, TimeUnit.SECONDS)
+				.readTimeout(config.readTimeoutInSeconds, TimeUnit.SECONDS)
 				.build();
 
 		String uri = "https://data.mixpanel.com/api/2.0/export?from_date=" + start + "&to_date=" + end;	
@@ -62,25 +64,20 @@ public class MixPanel2Split {
 			JSONObject rawProperties = rawEvent.getJSONObject("properties");
 
 			JSONObject splitEvent = new JSONObject();
-			splitEvent.put("key", rawProperties.getString(config.getString("key")));
-			splitEvent.put("trafficTypeName", config.getString("trafficType"));
+			splitEvent.put("key", rawProperties.getString(config.key));
+			splitEvent.put("trafficTypeName", config.trafficType);
 			splitEvent.put("eventTypeId", cleanEventTypeId(rawEvent.getString("event")));
-			splitEvent.put("value", rawProperties.has("value") ? rawProperties.get("value") : 0);
-			splitEvent.put("environmentName", config.getString("environment"));
-			splitEvent.put("timestamp", ("" + rawProperties.getLong("time")) + "000" );
+			splitEvent.put("value", rawProperties.has("value") ? rawProperties.get("value") : config.value);
+			splitEvent.put("environmentName", config.environment);
+			splitEvent.put("timestamp", Long.parseLong(("" + rawProperties.getLong("time")) + "000" ));
 			Map<String, Object> properties = new TreeMap<String, Object>();
-			putProperties(properties, config.getString("eventPrefix"), rawProperties);
+			putProperties(properties, config.eventPrefix, rawProperties);
 			splitEvent.put("properties", properties);
 
 			splitEvents.put(splitEvent);
 		}
 
-//		JSONArray truncatedSplitEvents = new JSONArray();
-//		for(int j = 0; j < 5; j++) {
-//			truncatedSplitEvents.put(splitEvents.get(j));
-//		}
-//		System.out.println(truncatedSplitEvents.toString(2));
-		CreateEvents creator = new CreateEvents(config.getString("split.admin.api.key"), 1000);
+		CreateEvents creator = new CreateEvents(config.splitServerSideApiKey, config.batchSize);
 		creator.doPost(splitEvents);		
 	}
 

@@ -51,11 +51,13 @@ public class CreateEvents {
 		httpPost.setHeader("Content-type", "application/json");
 		String authorizationHeader = "Bearer " + apiToken;
 		httpPost.setHeader("Authorization", authorizationHeader);
- 
+		System.out.println("INFO - " + httpPost.toString());
 		CloseableHttpResponse response = client.execute(httpPost);
 		System.out.println("INFO - POST to Split status code: " + response.getStatusLine());
 		if(response.getStatusLine().getStatusCode() >= 400) {
-			System.err.println(batch.getJSONObject(0).toString(2));
+			//System.err.println(batch.getJSONObject(0).toString(2));
+			System.err.println(batch.toString(2));
+			System.exit(1);
 		}
 		response.close();
 	}
