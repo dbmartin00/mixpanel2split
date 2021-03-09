@@ -1,8 +1,8 @@
 package io.split.dbm.integrations.mixpanel2split;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -47,29 +47,33 @@ public class MixPanel2Split {
 
 		System.out.println("INFO - starting request... ");
 		Response response = client.newCall(request).execute();
-		System.out.println("success getting export?\t\t" + response.code());
+//		System.out.println("success getting export?\t\t" + response.code());
 
+		long totalEventCount = 0;
 		JSONArray rawEvents = new JSONArray();
-		String body = response.body().string();
-		BufferedReader reader = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(body.getBytes())));
+		InputStream byteStream = response.body().byteStream();
+		BufferedReader reader = new BufferedReader(new InputStreamReader(byteStream));
 		String line = null;
 		while((line = reader.readLine()) != null) {
-			//System.out.println("line: " + line);
 			rawEvents.put(new JSONObject(line));
+			totalEventCount++;
+			if(rawEvents.length() >= config.batchSize) {
+				sendEventsToSplit(config, rawEvents);
+				rawEvents = new JSONArray();
+			}			
+		}	
+		if(rawEvents.length() > 0) {
+			sendEventsToSplit(config, rawEvents);
 		}
+		System.out.println("INFO - " + totalEventCount + " events sent");
+	}
 
+	private void sendEventsToSplit(final Configuration config, JSONArray rawEvents) throws Exception {
 		JSONArray splitEvents = new JSONArray();
 		for(int i = 0; i < rawEvents.length(); i++) {
 			JSONObject rawEvent = rawEvents.getJSONObject(i);
 			JSONObject rawProperties = rawEvent.getJSONObject("properties");
 
-			// Mappings look for a specific key in the raw event
-			// If the raw event has that key, the event becomes a Split event
-			// with the paired traffic type of the mapping.
-			//
-			// If a raw event matches several mappings, it can be sent several times
-			//
-			// If a raw event matches none of the mappings, it isn't sent.
 			for(Mapping mapping : config.mappings) {
 				String key = null;
 				if(rawProperties.has(mapping.key)) {
@@ -93,7 +97,7 @@ public class MixPanel2Split {
 		}
 
 		CreateEvents creator = new CreateEvents(config.splitServerSideApiKey, config.batchSize);
-		creator.doPost(splitEvents);		
+		creator.doPost(splitEvents);	
 	}
 
 	private String cleanEventTypeId(String eventName) {
