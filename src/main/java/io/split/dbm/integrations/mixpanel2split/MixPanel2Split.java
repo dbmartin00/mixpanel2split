@@ -4,54 +4,70 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Duration;
+import java.util.Base64;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.TimeUnit;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import com.google.gson.Gson;
 
-import okhttp3.Authenticator;
-import okhttp3.Credentials;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import okhttp3.Route;
-
 public class MixPanel2Split {
 
 	public void execute(String start, String end, final Configuration config) throws Exception {
 		System.out.println("INFO - " + new JSONObject(new Gson().toJson(config)).toString(2));
 
-		OkHttpClient client = new OkHttpClient.Builder()
-				.authenticator(new Authenticator() {
-					public Request authenticate(Route route, Response response) throws IOException {
-						String credential = Credentials.basic(config.mixpanelProjectApiSecret, "");
-						return response.request().newBuilder().header("Authorization", credential).build();
-					}
-				})
-				.connectTimeout(config.connectTimeoutInSeconds, TimeUnit.SECONDS)
-				.readTimeout(config.readTimeoutInSeconds, TimeUnit.SECONDS)
-				.build();
-
-		String uri = "https://data.mixpanel.com/api/2.0/export?from_date=" + start + "&to_date=" + end;	
-		System.out.println("INFO - " + uri);
-		Request request = new Request.Builder()
-				.url(uri)
-				.build();
-
-		System.out.println("INFO - starting request... ");
-		Response response = client.newCall(request).execute();
+//		OkHttpClient client = new OkHttpClient.Builder()
+//				.authenticator(new Authenticator() {
+//					public Request authenticate(Route route, Response response) throws IOException {
+//						String credential = Credentials.basic(config.mixpanelProjectApiSecret, "");
+//						return response.request().newBuilder().header("Authorization", credential).build();
+//					}
+//				})
+//				.connectTimeout(config.connectTimeoutInSeconds, TimeUnit.SECONDS)
+//				.readTimeout(config.readTimeoutInSeconds, TimeUnit.SECONDS)
+//				.build();
+//
+//		String uri = "https://data.mixpanel.com/api/2.0/export?from_date=" + start + "&to_date=" + end;	
+//		System.out.println("INFO - " + uri);
+//		Request request = new Request.Builder()
+//				.url(uri)
+//				.build();
+//
+//		System.out.println("INFO - starting request... ");
+//		Response response = client.newCall(request).execute();
 //		System.out.println("success getting export?\t\t" + response.code());
 
+		HttpClient httpClient = HttpClient.newBuilder()
+				.connectTimeout(Duration.ofSeconds(config.connectTimeoutInSeconds))
+				.build();
+
+		String apiUrl = "https://data.mixpanel.com/api/2.0/export?from_date=" + start + "&to_date=" + end;	
+        URI uri = URI.create(apiUrl);
+        HttpRequest request =  HttpRequest.newBuilder(uri).GET()
+                .header("Authorization", basicAuth(config.mixpanelProjectApiSecret, ""))
+                .build();
+        System.out.printf("INFO - Requesting MixPanel events: GET %s %n", uri);
+
+        // Process response
+        HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+        if(response.statusCode() >= 300) {
+            System.err.printf("ERROR - MixPanel events request failed: status=%s %n", response.statusCode());
+            System.exit(1);
+        }		
+		
 		long totalEventCount = 0;
 		JSONArray rawEvents = new JSONArray();
-		InputStream byteStream = response.body().byteStream();
+		InputStream byteStream = response.body();
 		BufferedReader reader = new BufferedReader(new InputStreamReader(byteStream));
 		String line = null;
 		while((line = reader.readLine()) != null) {
@@ -139,4 +155,8 @@ public class MixPanel2Split {
 			}
 		}
 	}
+	
+    private static String basicAuth(String username, String password) {
+        return "Basic " + Base64.getEncoder().encodeToString((username + ":" + password).getBytes());
+    }
 }

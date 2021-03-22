@@ -1,65 +1,65 @@
 package io.split.dbm.integrations.mixpanel2split;
 
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.nio.charset.Charset;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.json.JSONArray;
 
 public class CreateEvents {
-	
+
+	private static final String SPLIT_EVENTS_URL = "https://events.split.io/api/events/bulk";
+
 	private String apiToken;
 	private int batchSize;
+	private final HttpClient httpClient;
 
 	public CreateEvents(String splitApiToken, int batchSize) {
 		this.apiToken = splitApiToken;
 		this.batchSize = batchSize;
+		this.httpClient = HttpClient.newHttpClient();
 	}
 
 	public void
 	doPost(JSONArray events) throws Exception {
-	    CloseableHttpClient client = HttpClients.createDefault();
-	    HttpPost httpPost = new HttpPost("https://events.split.io/api/events/bulk");
-
-	    int i = 0;
-	    for( ; i < events.length();) {
-	    	JSONArray batch = new JSONArray();
-	    	int j = i;
-	    	for( ; j < i + batchSize && j < events.length(); j++) {
-	    		batch.put(events.getJSONObject(j));
-	    	}	   
-	    	System.out.println("INFO - sending events " + i + " ->  " + j + " of " + events.length());
-	    	postToSplit(client, httpPost, batch);
-	    	i += batchSize;
-	    	Thread.sleep(1000);
-	    }
-
-	    client.close();
-	}
-
-	private void postToSplit(CloseableHttpClient client, HttpPost httpPost, JSONArray batch)
-			throws UnsupportedEncodingException, IOException, ClientProtocolException {
-		StringEntity entity = new StringEntity(batch.toString(2), Charset.forName("UTF-8"));
-//		StringEntity entity = new StringEntity("[" + App.readFile("test.json") + "]", Charset.forName("UTF-8"));
-		httpPost.setEntity(entity);
-		httpPost.setHeader("Content-type", "application/json");
-		String authorizationHeader = "Bearer " + apiToken;
-		httpPost.setHeader("Authorization", authorizationHeader);
-		System.out.println("INFO - " + httpPost.toString());
-		CloseableHttpResponse response = client.execute(httpPost);
-		System.out.println("INFO - POST to Split status code: " + response.getStatusLine());
-		if(response.getStatusLine().getStatusCode() >= 400) {
-			//System.err.println(batch.getJSONObject(0).toString(2));
-			System.err.println(batch.toString(2));
-			System.exit(1);
+		int i = 0;
+		for( ; i < events.length();) {
+			JSONArray batch = new JSONArray();
+			int j = i;
+			for( ; j < i + batchSize && j < events.length(); j++) {
+				batch.put(events.getJSONObject(j));
+			}	   
+			System.out.println("INFO - sending events " + i + " ->  " + j + " of " + events.length());
+			postToSplit(batch);
+			i += batchSize;
+			Thread.sleep(1000);
 		}
-		response.close();
 	}
-	
+
+	private void postToSplit(JSONArray batch){
+		try {
+			System.out.println("INFO - Sending batch of events: size=" + batch.length());
+
+			// Build Request
+			HttpRequest request = HttpRequest.newBuilder(URI.create(SPLIT_EVENTS_URL))
+					.header("Content-type", "application/json")
+					.header("Authorization", "Bearer " + apiToken)
+					.POST(HttpRequest.BodyPublishers.ofString(batch.toString()))
+					.build();
+
+			// Process Response
+			HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+			if(response.statusCode() >= 400) {
+				System.err.printf("ERROR - Sending events to Split failed: status=%s response=%s %n", response.statusCode(), response.body());
+			}
+
+			// Courtesy to minimize pressure on API
+			Thread.sleep(100);
+		} catch(Exception e) {
+			System.err.println("ERROR - Failed to send event");
+			e.printStackTrace(System.err);
+		}
+	}
+
 }
