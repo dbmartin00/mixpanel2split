@@ -76,6 +76,7 @@ public class MixPanel2Split {
 			if(rawEvents.length() >= config.batchSize) {
 				sendEventsToSplit(config, rawEvents);
 				rawEvents = new JSONArray();
+				System.out.println("INFO - " + totalEventCount + " event sent");
 			}			
 		}	
 		if(rawEvents.length() > 0) {
