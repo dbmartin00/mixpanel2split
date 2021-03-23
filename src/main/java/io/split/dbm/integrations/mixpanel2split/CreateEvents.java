@@ -33,7 +33,6 @@ public class CreateEvents {
 			System.out.println("INFO - sending events " + i + " ->  " + j + " of " + events.length());
 			postToSplit(batch);
 			i += batchSize;
-			Thread.sleep(1000);
 		}
 	}
 
