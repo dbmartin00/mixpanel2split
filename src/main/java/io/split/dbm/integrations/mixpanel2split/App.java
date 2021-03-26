@@ -9,25 +9,29 @@ import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.json.JSONObject;
 
 public class App 
 {
+	private final static Logger LOGGER = Logger.getLogger(App.class.getName());
+	
     public static void main( String[] args ) throws Exception
     {  
 		if(args.length < 1) {
-			System.err.println("ERROR - first argument should be configuration file  (e.g. java -jar mixpanel2split.jar mixpanel2split.config)");
+			LOGGER.log(Level.SEVERE, "first argument should be configuration file  (e.g. java -jar mixpanel2split.jar mixpanel2split.config)");
 		} else {
 			File configFile = new File(args[0]);
 			if(!configFile.exists()) {
-				System.err.println("ERROR - file doesn't exist: " + args[0]);		
+				LOGGER.log(Level.SEVERE, "file doesn't exist: " + args[0]);		
 			} else {
 				try {
 					new JSONObject(readFile(args[0]));
 					new App().execute(args[0]);
 				} catch (Exception e) {
-					System.err.println("ERROR - invalid JSON config file: " + args[0]);			
+					LOGGER.log(Level.SEVERE, "invalid JSON config file: " + args[0]);			
 				}
 			}
 		}
@@ -49,15 +53,14 @@ public class App
 			String start = format.format(daysAgo);
 			String end = format.format(now);
 
-			System.out.println("INFO - reporting from " + start + " to " + end);
+			LOGGER.log(Level.INFO, "reporting from " + start + " to " + end);
 			
 			new MixPanel2Split().execute(start, end, config);
 			
 		} catch(Exception e) {
-			System.err.println("ERROR - exiting with error: " + e.getMessage());
-			e.printStackTrace(System.err);
+			LOGGER.log(Level.SEVERE, "exiting with error: " + e.getMessage(), e);
 		} finally {
-			System.out.println("INFO - finish in " + ((System.currentTimeMillis() - begin) / 1000) + "s");			
+			LOGGER.log(Level.INFO, "finished in " + ((System.currentTimeMillis() - begin) / 1000) + "s");			
 		}
 	}
 

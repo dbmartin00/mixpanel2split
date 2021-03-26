@@ -17,6 +17,8 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -25,6 +27,7 @@ import com.google.gson.Gson;
 
 public class MixPanel2Split {
 	
+	private final static Logger LOGGER = Logger.getLogger(MixPanel2Split.class.getName());
 	private ExecutorService eventPostingThreadPool;
 
 	public MixPanel2Split() {
@@ -32,7 +35,7 @@ public class MixPanel2Split {
 	}
 
 	public void execute(String start, String end, final Configuration config) throws Exception {
-		System.out.println("INFO - " + new JSONObject(new Gson().toJson(config)).toString(2));
+		LOGGER.log(Level.INFO, new JSONObject(new Gson().toJson(config)).toString(2));
 
 		HttpClient httpClient = HttpClient.newBuilder()
 				.connectTimeout(Duration.ofSeconds(config.connectTimeoutInSeconds))
@@ -42,16 +45,19 @@ public class MixPanel2Split {
         URI uri = URI.create(apiUrl);
         HttpRequest request =  HttpRequest.newBuilder(uri).GET()
                 .header("Authorization", basicAuth(config.mixpanelProjectApiSecret, ""))
+                .timeout(Duration.ofSeconds(config.connectTimeoutInSeconds))
                 .build();
-        System.out.printf("INFO - Requesting MixPanel events: GET %s %n", uri);
-
+        LOGGER.log(Level.INFO, "Requesting MixPanel events: GET " + uri);
+        
         // Process response
+        long startMP = System.currentTimeMillis();
         HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
         if(response.statusCode() >= 300) {
-            System.err.printf("ERROR - MixPanel events request failed: status=%s %n", response.statusCode());
+        	LOGGER.log(Level.SEVERE, "MixPanel events API request failed: status=" + response.statusCode() + " body=" + response.body());
             System.exit(1);
         }		
-		
+        LOGGER.log(Level.INFO, "MixPanel API responded in " + ((System.currentTimeMillis() - startMP) / 1000) + "s");
+        
 		long totalEventCount = 0;
 		JSONArray rawEvents = new JSONArray();
 		InputStream byteStream = response.body();
@@ -63,13 +69,13 @@ public class MixPanel2Split {
 			if(rawEvents.length() >= config.batchSize) {
 				sendEventsToSplit(config, rawEvents);
 				rawEvents = new JSONArray();
-				System.out.println("INFO - " + totalEventCount + " event sent");
+				LOGGER.log(Level.INFO, "INFO - " + totalEventCount + " event sent");
 			}			
 		}	
 		if(rawEvents.length() > 0) {
 			sendEventsToSplit(config, rawEvents);
 		}
-		System.out.println("INFO - " + totalEventCount + " events sent");
+		LOGGER.log(Level.INFO, "" + totalEventCount + " events sent");
 	}
 
 	private void sendEventsToSplit(final Configuration config, JSONArray rawEvents) throws Exception {
@@ -107,7 +113,7 @@ public class MixPanel2Split {
 				try {
 					creator.doPost(batchToPost);	
 				} catch(Exception e) {
-					System.out.println("ERROR - " + e.getMessage());
+					LOGGER.log(Level.SEVERE, e.getMessage(), e);
 				}
 			} 
 		});

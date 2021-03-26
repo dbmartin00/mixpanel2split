@@ -5,11 +5,14 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.json.JSONArray;
 
 public class CreateEvents {
 
+	private final static Logger LOGGER = Logger.getLogger(CreateEvents.class.getName());
 	private static final String SPLIT_EVENTS_URL = "https://events.split.io/api/events/bulk";
 
 	private String apiToken;
@@ -33,7 +36,7 @@ public class CreateEvents {
 			for( ; j < i + batchSize && j < events.length(); j++) {
 				batch.put(events.getJSONObject(j));
 			}	   
-			System.out.println("INFO - sending events " + i + " ->  " + j + " of " + events.length());
+			LOGGER.log(Level.INFO, "sending events " + i + " ->  " + j + " of " + events.length());
 			postToSplit(batch);
 			i += batchSize;
 		}
@@ -41,8 +44,8 @@ public class CreateEvents {
 
 	private void postToSplit(JSONArray batch){
 		try {
-			System.out.println("INFO - Sending batch of events: size=" + batch.length());
-
+			LOGGER.log(Level.INFO, "INFO - Sending batch of events: size=" + batch.length());
+			
 			// Build Request
 			HttpRequest request = HttpRequest.newBuilder(URI.create(SPLIT_EVENTS_URL))
 					.header("Content-type", "application/json")
@@ -58,12 +61,14 @@ public class CreateEvents {
 				response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 				statusCode = response.statusCode();
 				if(response.statusCode() >= 400) {
-					System.err.printf("ERROR - Sending events to Split failed: status=%s response=%s %n", response.statusCode(), response.body());
+					LOGGER.log(Level.WARNING, "sending events to Split failed: status=" + response.statusCode() + " response=" + response.body());
 				}
 			} while(retries++ < config.retries && response != null && response.statusCode() >= 400);
 
 			if(statusCode >= 400 && response != null && response.body() != null) {
-				PrintWriter out = new PrintWriter(config.debugDirectory + System.getProperty("file.separator") + "mixpanel2split-debug-" + System.currentTimeMillis() + ".json");
+				String debugFilePath = config.debugDirectory + System.getProperty("file.separator") + "mixpanel2split-debug-" + System.currentTimeMillis() + ".json";
+				LOGGER.log(Level.SEVERE, "failed to send events to split... writing JSON payload to debug file: " + debugFilePath);
+				PrintWriter out = new PrintWriter(debugFilePath);
 				out.println(batch.toString(2));
 				out.close();
 			}
@@ -71,8 +76,7 @@ public class CreateEvents {
 			// Courtesy to minimize pressure on API
 			Thread.sleep(100);
 		} catch(Exception e) {
-			System.err.println("ERROR - Failed to send event");
-			e.printStackTrace(System.err);
+			LOGGER.log(Level.SEVERE, "failed to send event: " + e.getMessage(), e);
 		}
 	}
 
