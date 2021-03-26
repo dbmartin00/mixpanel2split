@@ -15,6 +15,8 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -22,30 +24,15 @@ import org.json.JSONObject;
 import com.google.gson.Gson;
 
 public class MixPanel2Split {
+	
+	private ExecutorService eventPostingThreadPool;
+
+	public MixPanel2Split() {
+		this.eventPostingThreadPool = Executors.newFixedThreadPool(8, new EventPostingThreadFactory());
+	}
 
 	public void execute(String start, String end, final Configuration config) throws Exception {
 		System.out.println("INFO - " + new JSONObject(new Gson().toJson(config)).toString(2));
-
-//		OkHttpClient client = new OkHttpClient.Builder()
-//				.authenticator(new Authenticator() {
-//					public Request authenticate(Route route, Response response) throws IOException {
-//						String credential = Credentials.basic(config.mixpanelProjectApiSecret, "");
-//						return response.request().newBuilder().header("Authorization", credential).build();
-//					}
-//				})
-//				.connectTimeout(config.connectTimeoutInSeconds, TimeUnit.SECONDS)
-//				.readTimeout(config.readTimeoutInSeconds, TimeUnit.SECONDS)
-//				.build();
-//
-//		String uri = "https://data.mixpanel.com/api/2.0/export?from_date=" + start + "&to_date=" + end;	
-//		System.out.println("INFO - " + uri);
-//		Request request = new Request.Builder()
-//				.url(uri)
-//				.build();
-//
-//		System.out.println("INFO - starting request... ");
-//		Response response = client.newCall(request).execute();
-//		System.out.println("success getting export?\t\t" + response.code());
 
 		HttpClient httpClient = HttpClient.newBuilder()
 				.connectTimeout(Duration.ofSeconds(config.connectTimeoutInSeconds))
@@ -113,8 +100,17 @@ public class MixPanel2Split {
 			}
 		}
 
-		CreateEvents creator = new CreateEvents(config.splitServerSideApiKey, config.batchSize);
-		creator.doPost(splitEvents);	
+		final JSONArray batchToPost = splitEvents;
+		eventPostingThreadPool.execute(new Runnable() {
+			public void run() {
+				CreateEvents creator = new CreateEvents(config.splitServerSideApiKey, config);
+				try {
+					creator.doPost(batchToPost);	
+				} catch(Exception e) {
+					System.out.println("ERROR - " + e.getMessage());
+				}
+			} 
+		});
 	}
 
 	private String cleanEventTypeId(String eventName) {

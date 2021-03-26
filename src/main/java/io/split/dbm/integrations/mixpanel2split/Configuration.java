@@ -20,6 +20,9 @@ public class Configuration {
 	public String key;
 	public long value;
 	public int batchSize;   
+	public int retries;
+	public String debugDirectory;
+	public int eventPostingThreadCount;
 
 	public static Configuration fromFile(String configFilePath) throws IOException {
 		String configContents = Files.readString(Paths.get(configFilePath));

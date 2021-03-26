@@ -1,5 +1,6 @@
 package io.split.dbm.integrations.mixpanel2split;
 
+import java.io.PrintWriter;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -14,11 +15,13 @@ public class CreateEvents {
 	private String apiToken;
 	private int batchSize;
 	private final HttpClient httpClient;
-
-	public CreateEvents(String splitApiToken, int batchSize) {
+	private final Configuration config;
+	
+	public CreateEvents(String splitApiToken, Configuration config) {
 		this.apiToken = splitApiToken;
-		this.batchSize = batchSize;
+		this.batchSize = config.batchSize;
 		this.httpClient = HttpClient.newHttpClient();
+		this.config = config;
 	}
 
 	public void
@@ -48,11 +51,23 @@ public class CreateEvents {
 					.build();
 
 			// Process Response
-			HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-			if(response.statusCode() >= 400) {
-				System.err.printf("ERROR - Sending events to Split failed: status=%s response=%s %n", response.statusCode(), response.body());
-			}
+			HttpResponse<String> response;
+			int retries = 0;
+			int statusCode = -1;
+			do {
+				response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+				statusCode = response.statusCode();
+				if(response.statusCode() >= 400) {
+					System.err.printf("ERROR - Sending events to Split failed: status=%s response=%s %n", response.statusCode(), response.body());
+				}
+			} while(retries++ < config.retries && response != null && response.statusCode() >= 400);
 
+			if(statusCode >= 400 && response != null && response.body() != null) {
+				PrintWriter out = new PrintWriter(config.debugDirectory + System.getProperty("file.separator") + "mixpanel2split-debug-" + System.currentTimeMillis() + ".json");
+				out.println(response.body());
+				out.close();
+			}
+			
 			// Courtesy to minimize pressure on API
 			Thread.sleep(100);
 		} catch(Exception e) {

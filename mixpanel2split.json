@@ -22,5 +22,8 @@
   	  }
   ],  
   "value" : 0,
-  "batchSize" : 500  
+  "batchSize" : 500,
+  "retries" : 5,
+  "debugDirectory" : "/tmp/split",
+  "eventPostingThreadCount" : 8  
 }

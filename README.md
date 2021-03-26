@@ -36,7 +36,10 @@ Sample configuration file.
   	  }
   ],  
   "value" : 0,
-  "batchSize" : 500  
+  "batchSize" : 500,
+  "retries" : 5,
+  "debugDirectory" : "/tmp/split",
+  "eventPostingThreadCount" : 8 
 }
 ```
 Configuration Fields:
@@ -52,3 +55,7 @@ Configuration Fields:
 * "mapping" - events are expected for a key; when key is present and non-empty the event is sent to Split with the paired traffic type.  Events can match more than one key, but if they don't match any key they are never sent.
 * "batchSize" - how many Split events to send across in a single API request
 * "value" - leave at zero in most cases
+* "retries" - how many attempts should be made to resend data before a fail?
+* "debugDirectory" - what directory should be written to for failed JSON files?
+* "eventPostingThreadCount" - how many threads should be available to concurrently post events to Split?
+
