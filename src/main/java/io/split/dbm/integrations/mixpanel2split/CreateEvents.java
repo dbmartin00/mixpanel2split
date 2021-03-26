@@ -64,7 +64,7 @@ public class CreateEvents {
 
 			if(statusCode >= 400 && response != null && response.body() != null) {
 				PrintWriter out = new PrintWriter(config.debugDirectory + System.getProperty("file.separator") + "mixpanel2split-debug-" + System.currentTimeMillis() + ".json");
-				out.println(response.body());
+				out.println(batch.toString(2));
 				out.close();
 			}
 			
