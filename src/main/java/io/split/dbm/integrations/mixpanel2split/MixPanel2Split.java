@@ -28,10 +28,9 @@ import com.google.gson.Gson;
 public class MixPanel2Split {
 	
 	private final static Logger LOGGER = Logger.getLogger(MixPanel2Split.class.getName());
-	private ExecutorService eventPostingThreadPool;
 
 	public MixPanel2Split() {
-		this.eventPostingThreadPool = Executors.newFixedThreadPool(8, new EventPostingThreadFactory());
+		
 	}
 
 	public void execute(String start, String end, final Configuration config) throws Exception {
@@ -107,16 +106,8 @@ public class MixPanel2Split {
 		}
 
 		final JSONArray batchToPost = splitEvents;
-		eventPostingThreadPool.execute(new Runnable() {
-			public void run() {
-				CreateEvents creator = new CreateEvents(config.splitServerSideApiKey, config);
-				try {
-					creator.doPost(batchToPost);	
-				} catch(Exception e) {
-					LOGGER.log(Level.SEVERE, e.getMessage(), e);
-				}
-			} 
-		});
+		CreateEvents creator = new CreateEvents(config.splitServerSideApiKey, config);
+		creator.doPost(batchToPost);	
 	}
 
 	private String cleanEventTypeId(String eventName) {
