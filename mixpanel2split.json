@@ -1,10 +1,11 @@
 {
-  "lastNumberOfDays" : 1,
+  "lastNumberOfDays" : 30,
   "connectTimeoutInSeconds" : 1800,
   "readTimeoutInSeconds" : 1800,
-  "mixpanelProjectApiSecret" : "SECRET"
+  "mixpanelProjectApiSecret" : "SECRET",
   "splitServerSideApiKey" : "SECRET",
-  "environment" : "Prod-Default",
+  "eventNames" : [],
+  "environment" : "Test-Skywalker",
   "eventPrefix" : "mix.",
   "includedEvents" : [],
   "mappings" : [
@@ -22,8 +23,7 @@
   	  }
   ],  
   "value" : 0,
-  "batchSize" : 500,
+  "batchSize" : 1000,
   "retries" : 5,
-  "debugDirectory" : "/tmp/split",
-  "eventPostingThreadCount" : 8  
+  "debugDirectory" : "/tmp/split"
 }

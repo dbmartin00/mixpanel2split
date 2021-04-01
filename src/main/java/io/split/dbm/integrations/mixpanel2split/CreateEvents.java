@@ -1,5 +1,6 @@
 package io.split.dbm.integrations.mixpanel2split;
 
+import java.io.File;
 import java.io.PrintWriter;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -35,17 +36,15 @@ public class CreateEvents {
 			int j = i;
 			for( ; j < i + batchSize && j < events.length(); j++) {
 				batch.put(events.getJSONObject(j));
-			}	   
-			LOGGER.log(Level.INFO, "sending events " + i + " ->  " + j + " of " + events.length());
+			}
 			postToSplit(batch);
 			i += batchSize;
 		}
 	}
 
-	private void postToSplit(JSONArray batch){
+	private void postToSplit(JSONArray batch) {
+
 		try {
-			LOGGER.log(Level.INFO, "INFO - Sending batch of events: size=" + batch.length());
-			
 			// Build Request
 			HttpRequest request = HttpRequest.newBuilder(URI.create(SPLIT_EVENTS_URL))
 					.header("Content-type", "application/json")
@@ -68,13 +67,20 @@ public class CreateEvents {
 			if(statusCode >= 400 && response != null && response.body() != null) {
 				String debugFilePath = config.debugDirectory + System.getProperty("file.separator") + "mixpanel2split-debug-" + System.currentTimeMillis() + ".json";
 				LOGGER.log(Level.SEVERE, "failed to send events to split... writing JSON payload to debug file: " + debugFilePath);
+				File debugFile = new File(debugFilePath);
+				debugFile.createNewFile();
 				PrintWriter out = new PrintWriter(debugFilePath);
 				out.println(batch.toString(2));
 				out.close();
+			} else {
+				EventCounter.splitEventSent += batch.length();
+				LOGGER.log(Level.INFO, "Current Event Get from Mixpanel = " + EventCounter.mixpanelEventQuery);
+				LOGGER.log(Level.INFO, "Current Event Sent to Split = " + EventCounter.splitEventSent);
 			}
 			
 			// Courtesy to minimize pressure on API
 			Thread.sleep(100);
+
 		} catch(Exception e) {
 			LOGGER.log(Level.SEVERE, "failed to send event: " + e.getMessage(), e);
 		}

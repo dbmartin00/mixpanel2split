@@ -5,18 +5,19 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -26,11 +27,11 @@ import org.json.JSONObject;
 import com.google.gson.Gson;
 
 public class MixPanel2Split {
-	
+
 	private final static Logger LOGGER = Logger.getLogger(MixPanel2Split.class.getName());
 
 	public MixPanel2Split() {
-		
+
 	}
 
 	public void execute(String start, String end, final Configuration config) throws Exception {
@@ -40,48 +41,91 @@ public class MixPanel2Split {
 				.connectTimeout(Duration.ofSeconds(config.connectTimeoutInSeconds))
 				.build();
 
-		String apiUrl = "https://data.mixpanel.com/api/2.0/export?from_date=" + start + "&to_date=" + end;	
-        URI uri = URI.create(apiUrl);
-        HttpRequest request =  HttpRequest.newBuilder(uri).GET()
-                .header("Authorization", basicAuth(config.mixpanelProjectApiSecret, ""))
-                .timeout(Duration.ofSeconds(config.connectTimeoutInSeconds))
-                .build();
-        LOGGER.log(Level.INFO, "Requesting MixPanel events: GET " + uri);
-        
-        // Process response
-        long startMP = System.currentTimeMillis();
-        HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
-        if(response.statusCode() >= 300) {
-        	LOGGER.log(Level.SEVERE, "MixPanel events API request failed: status=" + response.statusCode() + " body=" + response.body());
-            System.exit(1);
-        }		
-        LOGGER.log(Level.INFO, "MixPanel API responded in " + ((System.currentTimeMillis() - startMP) / 1000) + "s");
-        
-		long totalEventCount = 0;
+		String events = toCommaSeparatedString(config.eventNames);
+		String encodedEvents = URLEncoder.encode(events, StandardCharsets.UTF_8.name());
+		String apiUrl = "https://data.mixpanel.com/api/2.0/export?from_date=" + start + "&to_date=" + end + "&event=[" + encodedEvents + "]";
+		URI uri = URI.create(apiUrl);
+		HttpRequest request =  HttpRequest.newBuilder(uri).GET()
+				.header("Authorization", basicAuth(config.mixpanelProjectApiSecret, ""))
+				.timeout(Duration.ofSeconds(config.connectTimeoutInSeconds))
+				.build();
+		LOGGER.log(Level.INFO, "Requesting MixPanel events: GET " + uri);
+
+		// Process response
+		long startMP = System.currentTimeMillis();
+		HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+		if(response.statusCode() >= 300) {
+			LOGGER.log(Level.SEVERE, "MixPanel events API request failed: status=" + response.statusCode() + " body=" + response.body());
+			System.exit(1);
+		}		
+		LOGGER.log(Level.INFO, "MixPanel API responded in " + ((System.currentTimeMillis() - startMP) / 1000) + "s");
+
 		JSONArray rawEvents = new JSONArray();
 		InputStream byteStream = response.body();
 		BufferedReader reader = new BufferedReader(new InputStreamReader(byteStream));
+		int retries = 0;
+		try {
+			readLoop(reader, rawEvents, config);
+		} catch (Exception ex) {
+			while(retries++ < 5) {
+				LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
+				Thread.sleep(500);
+				try {
+					readLoop(reader, rawEvents, config);
+					break;
+				} catch(Exception ex2) {
+					LOGGER.log(Level.SEVERE, ex2.getMessage(), ex2);
+				}
+			}
+		}
+
+		if(rawEvents.length() > 0) {
+			// LOGGER.log(Level.INFO, "event to post = " + rawEvents.length());
+			EventCounter.mixpanelEventQuery += rawEvents.length();
+			sendEventsToSplit(config, rawEvents);
+		}
+
+		LOGGER.log(Level.INFO, "Total Event Get from Mixpanel = " + EventCounter.mixpanelEventQuery);
+		LOGGER.log(Level.INFO, "Total Event Sent to Split = " + EventCounter.splitEventSent);
+	}
+
+	private String toCommaSeparatedString(List<String> strings) {
+		String result = "";
+		if(strings != null && !strings.isEmpty()) {
+			int i = 0;
+
+			for(String event : strings){
+
+				if(i++ < strings.size() - 1){
+					result += "\"" + event + "\",";
+				} else {
+					result += "\"" + event + "\"";
+				}
+			}
+		}
+		return result;
+	}
+
+	private void readLoop(BufferedReader reader, JSONArray rawEvents, Configuration config) throws Exception {
 		String line = null;
 		while((line = reader.readLine()) != null) {
 			rawEvents.put(new JSONObject(line));
-			totalEventCount++;
 			if(rawEvents.length() >= config.batchSize) {
+				EventCounter.mixpanelEventQuery += rawEvents.length();
 				sendEventsToSplit(config, rawEvents);
 				rawEvents = new JSONArray();
-				LOGGER.log(Level.INFO, "INFO - " + totalEventCount + " event sent");
 			}			
 		}	
-		if(rawEvents.length() > 0) {
-			sendEventsToSplit(config, rawEvents);
-		}
-		LOGGER.log(Level.INFO, "" + totalEventCount + " events sent");
+
 	}
+
 
 	private void sendEventsToSplit(final Configuration config, JSONArray rawEvents) throws Exception {
 		JSONArray splitEvents = new JSONArray();
 		for(int i = 0; i < rawEvents.length(); i++) {
 			JSONObject rawEvent = rawEvents.getJSONObject(i);
 			JSONObject rawProperties = rawEvent.getJSONObject("properties");
+			JSONObject splitEvent = new JSONObject();
 
 			for(Mapping mapping : config.mappings) {
 				String key = null;
@@ -89,7 +133,6 @@ public class MixPanel2Split {
 					key = rawProperties.getString(mapping.key);
 				}
 				if(key != null && !key.isEmpty()) {
-					JSONObject splitEvent = new JSONObject();
 					splitEvent.put("key", key);
 					splitEvent.put("trafficTypeName", mapping.trafficType);
 					splitEvent.put("eventTypeId", cleanEventTypeId(rawEvent.getString("event")));
@@ -99,10 +142,10 @@ public class MixPanel2Split {
 					Map<String, Object> properties = new TreeMap<String, Object>();
 					putProperties(properties, config.eventPrefix, rawProperties);
 					splitEvent.put("properties", properties);
-
-					splitEvents.put(splitEvent);
 				}
 			}
+
+			splitEvents.put(splitEvent);
 		}
 
 		final JSONArray batchToPost = splitEvents;
@@ -149,8 +192,8 @@ public class MixPanel2Split {
 			}
 		}
 	}
-	
-    private static String basicAuth(String username, String password) {
-        return "Basic " + Base64.getEncoder().encodeToString((username + ":" + password).getBytes());
-    }
+
+	private static String basicAuth(String username, String password) {
+		return "Basic " + Base64.getEncoder().encodeToString((username + ":" + password).getBytes());
+	}
 }

@@ -20,6 +20,7 @@ Sample configuration file.
   "splitServerSideApiKey" : "SECRET",
   "environment" : "Prod-Default",
   "eventPrefix" : "mix.",
+  "eventNames" : [],
   "includedEvents" : [],
   "mappings" : [
   	  {
@@ -58,4 +59,4 @@ Configuration Fields:
 * "retries" - how many attempts should be made to resend data before a fail?
 * "debugDirectory" - what directory should be written to for failed JSON files?
 * "eventPostingThreadCount" - how many threads should be available to concurrently post events to Split?
-
+* "eventNames" - array of string event names to exclude; passed in the query to MixPanel for filtering

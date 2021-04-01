@@ -3,6 +3,7 @@ package io.split.dbm.integrations.mixpanel2split;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.List;
 
 import com.google.gson.Gson;
 
@@ -11,6 +12,7 @@ public class Configuration {
 	public int lastNumberOfDays;
 	public int connectTimeoutInSeconds;
 	public int readTimeoutInSeconds;
+	public List<String> eventNames;
 	public String mixpanelProjectApiSecret;
 	public String splitServerSideApiKey;
 	public String environment;
