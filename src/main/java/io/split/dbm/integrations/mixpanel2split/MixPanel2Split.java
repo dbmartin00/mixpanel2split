@@ -208,7 +208,17 @@ public class MixPanel2Split {
 
 	private void putProperties(Map<String, Object> properties, String prefix, JSONObject obj) {
 		for(String k : obj.keySet()) {
-			if(!(obj.get(k) instanceof JSONArray)) {
+			if(obj.get(k) instanceof JSONObject) {
+				JSONObject o = obj.getJSONObject(k);
+				for(String key : o.keySet()) {
+					if(o.get(key) instanceof JSONObject) {
+						JSONObject d = (JSONObject) o.get(key);
+						putProperties(properties, prefix + key + ".", d);
+					} else {
+						properties.put(prefix + k + "." + key, o.get(key));
+					}
+				}
+			} else if(!(obj.get(k) instanceof JSONArray)) {
 				properties.put(prefix + k, obj.get(k));
 			} else {
 				JSONArray array = obj.getJSONArray(k);
