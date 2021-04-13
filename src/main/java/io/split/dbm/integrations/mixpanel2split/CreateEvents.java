@@ -6,16 +6,40 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.Date;
+import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 import org.json.JSONArray;
 
 public class CreateEvents {
 
-	private final static Logger LOGGER = Logger.getLogger(CreateEvents.class.getName());
+	private static Logger LOGGER;
 	private static final String SPLIT_EVENTS_URL = "https://events.split.io/api/events/bulk";
 
+	static {
+	      Logger mainLogger = Logger.getLogger(CreateEvents.class.getName());
+	      mainLogger.setUseParentHandlers(false);
+	      ConsoleHandler handler = new ConsoleHandler();
+	      handler.setFormatter(new SimpleFormatter() {
+	          private static final String format = "[%1$tF %1$tT] [%2$-7s] %3$s %n";
+
+	          @Override
+	          public synchronized String format(LogRecord lr) {
+	              return String.format(format,
+	                      new Date(lr.getMillis()),
+	                      lr.getLevel().getLocalizedName(),
+	                      lr.getMessage()
+	              );
+	          }
+	      });
+	      mainLogger.addHandler(handler);
+	      LOGGER = mainLogger;
+	}
+	
 	private String apiToken;
 	private int batchSize;
 	private final HttpClient httpClient;
@@ -74,8 +98,8 @@ public class CreateEvents {
 				out.close();
 			} else {
 				EventCounter.splitEventSent += batch.length();
-				LOGGER.log(Level.INFO, "Current Event Get from Mixpanel = " + EventCounter.mixpanelEventQuery);
-				LOGGER.log(Level.INFO, "Current Event Sent to Split = " + EventCounter.splitEventSent);
+				//LOGGER.log(Level.INFO, "Current Event Get from Mixpanel = " + EventCounter.mixpanelEventQuery);
+				LOGGER.log(Level.FINE, "Current Event Sent to Split = " + EventCounter.splitEventSent);
 			}
 			
 			// Courtesy to minimize pressure on API

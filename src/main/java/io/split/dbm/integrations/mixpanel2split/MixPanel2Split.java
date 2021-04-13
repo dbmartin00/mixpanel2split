@@ -15,11 +15,15 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -28,8 +32,28 @@ import com.google.gson.Gson;
 
 public class MixPanel2Split {
 
-	private final static Logger LOGGER = Logger.getLogger(MixPanel2Split.class.getName());
+	private static Logger LOGGER;
 
+	static {
+	      Logger mainLogger = Logger.getLogger(MixPanel2Split.class.getName());
+	      mainLogger.setUseParentHandlers(false);
+	      ConsoleHandler handler = new ConsoleHandler();
+	      handler.setFormatter(new SimpleFormatter() {
+	          private static final String format = "[%1$tF %1$tT] [%2$-7s] %3$s %n";
+
+	          @Override
+	          public synchronized String format(LogRecord lr) {
+	              return String.format(format,
+	                      new Date(lr.getMillis()),
+	                      lr.getLevel().getLocalizedName(),
+	                      lr.getMessage()
+	              );
+	          }
+	      });
+	      mainLogger.addHandler(handler);
+	      LOGGER = mainLogger;
+	}
+	
 	public MixPanel2Split() {
 
 	}
